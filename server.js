@@ -16,8 +16,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fam_bottling')
+// Database connection with timeout settings
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fam_bottling', {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+})
   .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.log('❌ MongoDB connection error:', err));
 

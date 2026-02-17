@@ -8,7 +8,7 @@ const SupplySchema = new mongoose.Schema({
   },
   bottleSize: {
     type: String,
-    enum: ['30cl', '50cl', '60cl', '75cl', '1L', '1.5L'],
+    enum: ['30cl', '50cl', '60cl', '1L'],
     required: [true, 'Please select a bottle size']
   },
   quantity: {
