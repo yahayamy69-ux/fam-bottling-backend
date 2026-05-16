@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin.js';
 import contactRoutes from './routes/contact.js';
 import qrRoutes from './routes/qr.js';
 import bottleScanRoutes from './routes/bottleScan.js';
+import barcodeScannerGameRoutes from './routes/barcodeScannerGame.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -34,6 +35,7 @@ app.use('/api/bottle-scan', bottleScanRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/scanner-game', barcodeScannerGameRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
