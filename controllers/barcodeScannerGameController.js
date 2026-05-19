@@ -1,23 +1,55 @@
+import crypto from 'crypto';
 import User from '../models/User.js';
+import ScannerGameSession from '../models/ScannerGameSession.js';
 
 // Generate a random 4-digit code or barcode
 export const generateCode = async (req, res) => {
   try {
-    console.log('🔧 Generating barcode code...');
+    const userId = req.user.id || req.user._id;
+    console.log('🔧 Generating barcode code for user:', userId);
+    
+    // Check for rate-limiting: prevent generating new code too soon
+    const recentSession = await ScannerGameSession.findOne({
+      userId,
+      status: 'pending',
+      createdAt: { $gt: new Date(Date.now() - 30 * 1000) } // Last 30 seconds
+    });
+    
+    if (recentSession) {
+      console.warn('⚠️  Rate limit: user has pending code, wait 30s');
+      return res.status(429).json({
+        success: false,
+        message: 'Please wait 30 seconds before generating a new code. Use the existing code first!'
+      });
+    }
     
     // Generate random 4-digit code
     const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
     
+    // Generate a secure one-time token for mobile QR checkout.
+    const rechargeToken = crypto.randomBytes(20).toString('hex');
+    
     // Also generate a barcode-like string (could be EAN format or similar)
     const barcode = generateBarcodeString();
     
-    const responseData = {
-      code: randomCode,
+    // Store the session in database. This token is later validated by /recharge/qr.
+    const session = await ScannerGameSession.create({
+      userId,
+      displayCode: randomCode,
+      rechargeToken,
       barcode: barcode,
-      displayCode: randomCode // Display the 4-digit code to user
+      status: 'pending'
+    });
+    
+    const responseData = {
+      sessionId: session._id,
+      displayCode: randomCode,
+      rechargeToken,
+      barcode: barcode,
+      expiresAt: session.expiresAt
     };
     
-    console.log('✅ Code generated:', randomCode);
+    console.log('✅ Code generated and stored:', randomCode, 'expires at', session.expiresAt);
     
     res.status(200).json({
       success: true,
@@ -35,10 +67,10 @@ export const generateCode = async (req, res) => {
 // Process scanned barcode/code
 export const processScan = async (req, res) => {
   try {
-    const { scannedValue } = req.body;
-    const userId = req.user._id;
+    const { scannedValue, sessionId } = req.body;
+    const userId = req.user.id || req.user._id;
 
-    console.log('🔍 Processing scan:', { scannedValue, userId });
+    console.log('🔍 Processing scan:', { scannedValue, userId, sessionId });
 
     if (!scannedValue) {
       console.warn('⚠️  Scanned value is missing');
@@ -48,7 +80,75 @@ export const processScan = async (req, res) => {
       });
     }
 
-    // Find and update user
+    // Find the user's most recent pending session (if sessionId not provided)
+    let session;
+    if (sessionId) {
+      session = await ScannerGameSession.findOne({
+        _id: sessionId,
+        userId,
+        status: 'pending'
+      });
+    } else {
+      // Find the latest pending session for this user
+      session = await ScannerGameSession.findOne({
+        userId,
+        status: 'pending'
+      }).sort({ createdAt: -1 });
+    }
+
+    if (!session) {
+      console.error('❌ No active session found for user:', userId);
+      return res.status(404).json({
+        success: false,
+        message: 'No active code to scan. Generate a new code first.'
+      });
+    }
+
+    // Check if session has expired
+    if (session.expiresAt < new Date()) {
+      await ScannerGameSession.updateOne({ _id: session._id }, { status: 'expired' });
+      console.warn('⚠️  Session expired:', session._id);
+      return res.status(400).json({
+        success: false,
+        message: 'Code has expired. Generate a new code.'
+      });
+    }
+
+    // Validate scanned value matches displayCode
+    const isValidScan = scannedValue.toString().trim() === session.displayCode;
+    
+    console.log('🔎 Validation check:', { scannedValue, displayCode: session.displayCode, isValid: isValidScan });
+
+    if (!isValidScan) {
+      // Mark session as scanned but invalid
+      await ScannerGameSession.updateOne(
+        { _id: session._id },
+        {
+          status: 'scanned',
+          scannedValue,
+          isValid: false,
+          scannedAt: new Date()
+        }
+      );
+      console.warn('❌ Invalid scan - value does not match code');
+      return res.status(400).json({
+        success: false,
+        message: `Invalid code. Expected ${session.displayCode}, got ${scannedValue}. Try again with the correct code.`
+      });
+    }
+
+    // Valid scan - mark as used (single-use)
+    await ScannerGameSession.updateOne(
+      { _id: session._id },
+      {
+        status: 'scanned',
+        scannedValue,
+        isValid: true,
+        scannedAt: new Date()
+      }
+    );
+
+    // Update user's cashback balance
     const user = await User.findByIdAndUpdate(
       userId,
       { $inc: { totalCashback: 10 } },
@@ -63,16 +163,20 @@ export const processScan = async (req, res) => {
       });
     }
 
-    console.log('✅ Scan processed. New balance:', user.totalCashback);
+    console.log('✅ Valid scan processed. New balance:', user.totalCashback);
 
     res.status(200).json({
       success: true,
-      message: 'Scan successful! +10 naira added to your account',
+      message: 'Scan successful! +₦10 added to your account 🎉',
       data: {
         scannedValue,
         earnedAmount: 10,
         newBalance: user.totalCashback,
-        user
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email
+        }
       }
     });
   } catch (error) {
@@ -82,7 +186,14 @@ export const processScan = async (req, res) => {
       message: error.message
     });
   }
-};ole.log('📊 Fetching scanner stats for user:', userId);
+};
+
+// Get user's scanner earnings history
+export const getUserScannerStats = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    
+    console.log('📊 Fetching scanner stats for user:', userId);
     
     const user = await User.findById(userId).select('totalCashback name email');
 
@@ -109,14 +220,7 @@ export const processScan = async (req, res) => {
       data: statsData
     });
   } catch (error) {
-    console.error('❌ Error fetching stats:', error);.json({
-      success: true,
-      data: {
-        totalEarnings: user.totalCashback,
-        user
-      }
-    });
-  } catch (error) {
+    console.error('❌ Error fetching stats:', error);
     res.status(500).json({
       success: false,
       message: error.message

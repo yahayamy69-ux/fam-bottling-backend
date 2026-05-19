@@ -22,16 +22,19 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    const displayName = name.trim();
+
     // Check if user already exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
     // Create new user
     const user = await User.create({
-      name,
-      email,
+      name: displayName,
+      email: normalizedEmail,
       password
     });
 

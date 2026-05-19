@@ -2,6 +2,7 @@ import express from 'express';
 import {
   generateLoginQR,
   authenticateWithQR,
+  authenticateWithCode,
   checkQRStatus,
   generateScanSessionQR
 } from '../controllers/qrController.js';
@@ -14,6 +15,7 @@ router.post('/generate-login', generateLoginQR);
 
 // Authenticate via QR code from mobile device (requires auth on mobile)
 router.post('/authenticate', protect, authenticateWithQR);
+router.post('/authenticate-with-code', protect, authenticateWithCode);
 
 // Check QR session status (SPVRM polls this, no auth needed)
 router.get('/status/:sessionCode', checkQRStatus);

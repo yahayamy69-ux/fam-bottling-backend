@@ -5,11 +5,26 @@ import User from './models/User.js';
 
 dotenv.config();
 
+const sanitizeEnvValue = (value) => {
+  if (value === undefined || value === null) return '';
+  let normalized = String(value).trim();
+  if ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'"))) {
+    normalized = normalized.slice(1, -1);
+  }
+  return normalized.replace(/\\r|\\n/g, '').trim();
+};
+
+const getMongoUri = () => {
+  const envUri = sanitizeEnvValue(process.env.MONGODB_URI);
+  return envUri || 'mongodb://localhost:27017/fam_bottling';
+};
+
 const createAdminUser = async () => {
   try {
     // Connect to MongoDB
     console.log('🔄 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fam_bottling');
+    await mongoose.connect(getMongoUri());
     console.log('✅ MongoDB Connected');
 
     // Admin credentials

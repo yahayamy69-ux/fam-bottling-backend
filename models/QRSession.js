@@ -11,6 +11,10 @@ const QRSessionSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  loginCode: {
+    type: String,
+    default: null
+  },
   type: {
     type: String,
     enum: ['login', 'scan_session'],

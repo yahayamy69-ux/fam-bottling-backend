@@ -13,7 +13,7 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     match: [
-      /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+      /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, 
       'Please provide a valid email'
     ]
   },
@@ -45,7 +45,7 @@ const UserSchema = new mongoose.Schema({
 // Hash password before saving
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
 
   try {

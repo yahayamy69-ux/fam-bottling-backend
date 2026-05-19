@@ -1,6 +1,7 @@
 import BottleScan from '../models/BottleScan.js';
 import User from '../models/User.js';
 import QRSession from '../models/QRSession.js';
+import mongoose from 'mongoose';
 
 // Submit scanned bottle data
 export const submitScannedBottle = async (req, res) => {
@@ -86,7 +87,12 @@ export const getUserScannedBottles = async (req, res) => {
 // Get scanned bottle by ID
 export const getScannedBottleById = async (req, res) => {
   try {
-    const bottle = await BottleScan.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid bottle scan id' });
+    }
+
+    const bottle = await BottleScan.findById(id);
 
     if (!bottle) {
       return res.status(404).json({ message: 'Bottle scan not found' });
@@ -113,8 +119,13 @@ export const updateScannedBottle = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid bottle scan id' });
+    }
+
     const bottle = await BottleScan.findByIdAndUpdate(
-      req.params.id,
+      id,
       { status, notes: notes || '' },
       { new: true, runValidators: true }
     );
