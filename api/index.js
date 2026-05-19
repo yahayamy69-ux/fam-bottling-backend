@@ -10,6 +10,8 @@ import qrRoutes from '../routes/qr.js';
 import machineRoutes from '../routes/machine.js';
 import bottleScanRoutes from '../routes/bottleScan.js';
 import barcodeScannerGameRoutes from '../routes/barcodeScannerGame.js';
+import rechargeRoutes from '../routes/recharge.js';
+import claimRoutes from '../routes/claim.js';
 import errorHandler from '../middleware/errorHandler.js';
 
 dotenv.config();
@@ -85,6 +87,8 @@ app.use('/api/bottle-scan', bottleScanRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/machines', machineRoutes);
 app.use('/api/scanner-game', barcodeScannerGameRoutes);
+app.use('/api/recharge', rechargeRoutes);
+app.use('/api/claim', claimRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 
