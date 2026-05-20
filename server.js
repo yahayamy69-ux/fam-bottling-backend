@@ -12,6 +12,7 @@ import bottleScanRoutes from './routes/bottleScan.js';
 import barcodeScannerGameRoutes from './routes/barcodeScannerGame.js';
 import rechargeRoutes from './routes/recharge.js';
 import claimRoutes from './routes/claim.js';
+import redeemRoutes from './routes/redeem.js';
 import errorHandler from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -91,6 +92,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/scanner-game', barcodeScannerGameRoutes);
 app.use('/api/claim', claimRoutes);
+app.use('/api/redeem', redeemRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
