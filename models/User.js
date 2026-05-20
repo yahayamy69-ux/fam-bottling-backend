@@ -36,6 +36,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  monthlyClaimsCount: {
+    type: Number,
+    default: 0
+  },
+  lastClaimResetDate: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -148,12 +148,8 @@ export const processScan = async (req, res) => {
       }
     );
 
-    // Update user's cashback balance
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $inc: { totalCashback: 10 } },
-      { new: true }
-    ).select('-password');
+    // Get current user to check monthly claim limit
+    let user = await User.findById(userId).select('-password');
 
     if (!user) {
       console.error('❌ User not found:', userId);
@@ -163,7 +159,48 @@ export const processScan = async (req, res) => {
       });
     }
 
-    console.log('✅ Valid scan processed. New balance:', user.totalCashback);
+    // Check if we need to reset the monthly counter (new month)
+    const today = new Date();
+    const lastReset = user.lastClaimResetDate ? new Date(user.lastClaimResetDate) : new Date();
+    const isNewMonth = 
+      today.getMonth() !== lastReset.getMonth() || 
+      today.getFullYear() !== lastReset.getFullYear();
+
+    if (isNewMonth) {
+      // Reset monthly counter for new month
+      user.monthlyClaimsCount = 0;
+      user.lastClaimResetDate = today;
+      await user.save();
+      console.log('✅ Monthly counter reset for user:', userId);
+    }
+
+    // Check if user has already claimed 3 times this month
+    if (user.monthlyClaimsCount >= 3) {
+      console.warn('⚠️  User has reached monthly claim limit (3/3):', userId);
+      return res.status(429).json({
+        success: false,
+        message: 'You have reached your monthly limit of 3 claims. Please come back next month!',
+        data: {
+          claimsUsed: user.monthlyClaimsCount,
+          claimsRemaining: 0,
+          resetDate: new Date(today.getFullYear(), today.getMonth() + 1, 1)
+        }
+      });
+    }
+
+    // User can claim - update cashback and increment claim count
+    user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        $inc: { 
+          totalCashback: 10,
+          monthlyClaimsCount: 1
+        }
+      },
+      { new: true }
+    ).select('-password');
+
+    console.log('✅ Valid scan processed. New balance:', user.totalCashback, 'Claims this month:', user.monthlyClaimsCount);
 
     res.status(200).json({
       success: true,
@@ -172,6 +209,8 @@ export const processScan = async (req, res) => {
         scannedValue,
         earnedAmount: 10,
         newBalance: user.totalCashback,
+        claimsUsed: user.monthlyClaimsCount,
+        claimsRemaining: 3 - user.monthlyClaimsCount,
         user: {
           id: user._id,
           name: user.name,

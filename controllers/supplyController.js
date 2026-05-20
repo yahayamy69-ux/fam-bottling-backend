@@ -1,6 +1,7 @@
 import Supply from '../models/Supply.js';
 import User from '../models/User.js';
 import RedeemCode from '../models/RedeemCode.js';
+import ScannerGameSession from '../models/ScannerGameSession.js';
 
 // Submit supply (with cashback calculation)
 export const submitSupply = async (req, res) => {
@@ -63,6 +64,13 @@ export const getUserSupplies = async (req, res) => {
     // Fetch user's redemptions
     const redemptions = await RedeemCode.find({ redeemedBy: req.user.id }).sort({ redeemedAt: -1 });
     
+    // Fetch user's successful claims (completed scans)
+    const claims = await ScannerGameSession.find({ 
+      userId: req.user.id,
+      status: 'scanned',
+      isValid: true
+    }).sort({ scannedAt: -1 });
+    
     // Convert redemptions to transaction format
     const redemptionTransactions = redemptions.map(redemption => {
       // Decode points from code
@@ -76,27 +84,44 @@ export const getUserSupplies = async (req, res) => {
         amount: points,
         status: 'completed',
         createdAt: redemption.redeemedAt,
-        isRedemption: true
+        isRedemption: true,
+        isClaim: false
+      };
+    });
+
+    // Convert claims to transaction format
+    const claimTransactions = claims.map(claim => {
+      return {
+        _id: claim._id,
+        type: 'claim',
+        displayCode: claim.displayCode,
+        amount: 10,
+        status: 'completed',
+        createdAt: claim.scannedAt,
+        isRedemption: false,
+        isClaim: true
       };
     });
     
-    // Combine supplies and redemptions, sort by date
+    // Combine supplies, redemptions, and claims; sort by date
     const allTransactions = [
-      ...supplies.map(s => ({ ...s.toObject(), isRedemption: false })),
-      ...redemptionTransactions
+      ...supplies.map(s => ({ ...s.toObject(), isRedemption: false, isClaim: false })),
+      ...redemptionTransactions,
+      ...claimTransactions
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Calculate summary stats including redemptions
-    const totalSupplies = supplies.length + redemptions.length;
+    // Calculate summary stats including redemptions and claims
+    const totalSupplies = supplies.length + redemptions.length + claims.length;
     const totalAmount = supplies.reduce((sum, s) => sum + s.totalAmount, 0) + 
                        redemptions.reduce((sum, r) => {
                          const pointsStr = r.code.substring(1).slice(0, -2);
                          return sum + parseInt(pointsStr, 10);
-                       }, 0);
+                       }, 0) +
+                       (claims.length * 10); // Each claim is ₦10
     const totalCashback = supplies.reduce((sum, s) => sum + s.cashback, 0);
 
     res.status(200).json({
-      message: 'Supplies and redemptions retrieved successfully',
+      message: 'Supplies, redemptions, and claims retrieved successfully',
       summary: {
         totalSupplies,
         totalAmount,
