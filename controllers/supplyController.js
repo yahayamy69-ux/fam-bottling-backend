@@ -1,5 +1,6 @@
 import Supply from '../models/Supply.js';
 import User from '../models/User.js';
+import RedeemCode from '../models/RedeemCode.js';
 
 // Submit supply (with cashback calculation)
 export const submitSupply = async (req, res) => {
@@ -54,24 +55,54 @@ export const submitSupply = async (req, res) => {
   }
 };
 
-// Get user's supplies
+// Get user's supplies and redemptions
 export const getUserSupplies = async (req, res) => {
   try {
     const supplies = await Supply.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    
+    // Fetch user's redemptions
+    const redemptions = await RedeemCode.find({ redeemedBy: req.user.id }).sort({ redeemedAt: -1 });
+    
+    // Convert redemptions to transaction format
+    const redemptionTransactions = redemptions.map(redemption => {
+      // Decode points from code
+      const pointsStr = redemption.code.substring(1).slice(0, -2); // Remove R and last 2 digits
+      const points = parseInt(pointsStr, 10);
+      
+      return {
+        _id: redemption._id,
+        type: 'reward_redemption',
+        code: redemption.code,
+        amount: points,
+        status: 'completed',
+        createdAt: redemption.redeemedAt,
+        isRedemption: true
+      };
+    });
+    
+    // Combine supplies and redemptions, sort by date
+    const allTransactions = [
+      ...supplies.map(s => ({ ...s.toObject(), isRedemption: false })),
+      ...redemptionTransactions
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Calculate summary stats
-    const totalSupplies = supplies.length;
-    const totalAmount = supplies.reduce((sum, s) => sum + s.totalAmount, 0);
+    // Calculate summary stats including redemptions
+    const totalSupplies = supplies.length + redemptions.length;
+    const totalAmount = supplies.reduce((sum, s) => sum + s.totalAmount, 0) + 
+                       redemptions.reduce((sum, r) => {
+                         const pointsStr = r.code.substring(1).slice(0, -2);
+                         return sum + parseInt(pointsStr, 10);
+                       }, 0);
     const totalCashback = supplies.reduce((sum, s) => sum + s.cashback, 0);
 
     res.status(200).json({
-      message: 'Supplies retrieved successfully',
+      message: 'Supplies and redemptions retrieved successfully',
       summary: {
         totalSupplies,
         totalAmount,
         totalCashback
       },
-      supplies
+      supplies: allTransactions
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

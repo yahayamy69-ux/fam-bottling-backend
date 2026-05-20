@@ -1,6 +1,6 @@
 import express from 'express';
 import { generateESPCode, redeemESPCode } from '../controllers/espController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -16,6 +16,6 @@ router.post('/generate-code', generateESPCode);
  * Redeem a code and add ₦10 to user's balance
  * Requires authentication
  */
-router.post('/redeem-code', authMiddleware, redeemESPCode);
+router.post('/redeem-code', protect, redeemESPCode);
 
 export default router;
