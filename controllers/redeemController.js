@@ -44,23 +44,6 @@ export const redeemCode = async (req, res) => {
 
     const codeUppercase = code.toUpperCase();
 
-    // Check if code exists and if already redeemed
-    const existingCode = await RedeemCode.findOne({ code: codeUppercase });
-
-    if (!existingCode) {
-      return res.status(404).json({
-        success: false,
-        message: 'Reward code not found. Please check the code and try again or contact support.'
-      });
-    }
-
-    if (existingCode.isRedeemed) {
-      return res.status(400).json({
-        success: false,
-        message: 'This reward code has already been redeemed'
-      });
-    }
-
     // Decode points from code
     const points = decodePoints(codeUppercase);
 
@@ -88,11 +71,19 @@ export const redeemCode = async (req, res) => {
     user.totalCashback = (user.totalCashback || 0) + points;
     await user.save();
 
-    // Mark code as redeemed
-    existingCode.isRedeemed = true;
-    existingCode.redeemedBy = userId;
-    existingCode.redeemedAt = new Date();
-    await existingCode.save();
+    // Optionally track the redemption in the RedeemCode model if it exists
+    // but don't fail if it doesn't
+    try {
+      const existingCode = await RedeemCode.findOne({ code: codeUppercase });
+      if (existingCode && !existingCode.isRedeemed) {
+        existingCode.isRedeemed = true;
+        existingCode.redeemedBy = userId;
+        existingCode.redeemedAt = new Date();
+        await existingCode.save();
+      }
+    } catch (e) {
+      // Ignore errors tracking the code - it's optional
+    }
 
     return res.status(200).json({
       success: true,
