@@ -50,7 +50,7 @@ export const redeemCode = async (req, res) => {
     if (!existingCode) {
       return res.status(404).json({
         success: false,
-        message: 'This reward code has not been activated yet. Please check your code or contact support.'
+        message: 'Reward code not found. Please check the code and try again or contact support.'
       });
     }
 

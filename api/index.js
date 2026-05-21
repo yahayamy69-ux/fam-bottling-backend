@@ -14,6 +14,7 @@ import rechargeRoutes from '../routes/recharge.js';
 import claimRoutes from '../routes/claim.js';
 import redeemRoutes from '../routes/redeem.js';
 import espRoutes from '../routes/esp.js';
+import bankAccountRoutes from '../routes/bankAccount.js';
 import errorHandler from '../middleware/errorHandler.js';
 
 dotenv.config();
@@ -93,6 +94,7 @@ app.use('/api/recharge', rechargeRoutes);
 app.use('/api/claim', claimRoutes);
 app.use('/api/redeem', redeemRoutes);
 app.use('/api/esp', espRoutes);
+app.use('/api/bank-account', bankAccountRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 
