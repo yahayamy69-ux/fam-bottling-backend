@@ -13,6 +13,7 @@ import barcodeScannerGameRoutes from '../routes/barcodeScannerGame.js';
 import rechargeRoutes from '../routes/recharge.js';
 import claimRoutes from '../routes/claim.js';
 import redeemRoutes from '../routes/redeem.js';
+import espRoutes from '../routes/esp.js';
 import errorHandler from '../middleware/errorHandler.js';
 
 dotenv.config();
@@ -91,6 +92,7 @@ app.use('/api/scanner-game', barcodeScannerGameRoutes);
 app.use('/api/recharge', rechargeRoutes);
 app.use('/api/claim', claimRoutes);
 app.use('/api/redeem', redeemRoutes);
+app.use('/api/esp', espRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 
